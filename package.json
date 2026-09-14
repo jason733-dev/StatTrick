@@ -2,8 +2,9 @@
   "name": "stat-trick-bangers",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "Stat Trick — live match stat tracker for the Bangers (Los Gatos United U12)",
   "dependencies": {
-    "@vercel/kv": "^2.0.0"
+    "firebase-admin": "^14.4.0"
   }
 }

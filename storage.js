@@ -1,4 +1,13 @@
-import { kv } from '@vercel/kv';
+import admin from 'firebase-admin';
+
+if (!admin.apps.length) {
+  const serviceAccount = JSON.parse(
+    Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_B64, 'base64').toString('utf8')
+  );
+  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+}
+const db = admin.firestore();
+const COLLECTION = 'stat_trick_storage';
 
 export default async function handler(req, res) {
   const key = req.query.key;
@@ -7,14 +16,16 @@ export default async function handler(req, res) {
     return;
   }
 
+  const docRef = db.collection(COLLECTION).doc(key);
+
   try {
     if (req.method === 'GET') {
-      const value = await kv.get(key);
-      if (value === null || value === undefined) {
+      const snap = await docRef.get();
+      if (!snap.exists) {
         res.status(404).json({ error: 'not found' });
         return;
       }
-      res.status(200).json({ key, value });
+      res.status(200).json({ key, value: snap.data().value });
       return;
     }
 
@@ -24,13 +35,13 @@ export default async function handler(req, res) {
         res.status(400).json({ error: 'value must be a string' });
         return;
       }
-      await kv.set(key, body.value);
+      await docRef.set({ value: body.value });
       res.status(200).json({ key, value: body.value });
       return;
     }
 
     if (req.method === 'DELETE') {
-      await kv.del(key);
+      await docRef.delete();
       res.status(200).json({ key });
       return;
     }

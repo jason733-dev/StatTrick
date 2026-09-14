@@ -5,9 +5,9 @@ export default async function handler(req, res) {
     return;
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    res.status(500).json({ error: 'Server is missing ANTHROPIC_API_KEY' });
+    res.status(500).json({ error: 'Server is missing GEMINI_API_KEY' });
     return;
   }
 
@@ -18,33 +18,34 @@ export default async function handler(req, res) {
   }
 
   try {
-    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        // Check docs.claude.com for the current recommended model string
-        // if this one is ever retired.
-        model: 'claude-sonnet-5',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    });
+    // Check ai.google.dev/gemini-api/docs/models for the current recommended
+    // model string if this one is ever retired.
+    const model = 'gemini-2.5-flash';
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: 1000 },
+        }),
+      }
+    );
 
-    const data = await anthropicRes.json();
+    const data = await geminiRes.json();
 
-    if (!anthropicRes.ok) {
-      console.error('Anthropic API error', data);
-      res.status(anthropicRes.status).json({ error: data.error?.message || 'Anthropic API error' });
+    if (!geminiRes.ok) {
+      console.error('Gemini API error', data);
+      res.status(geminiRes.status).json({ error: data.error?.message || 'Gemini API error' });
       return;
     }
 
-    const text = (data.content || [])
-      .filter((block) => block.type === 'text')
-      .map((block) => block.text)
+    const text = (data.candidates?.[0]?.content?.parts || [])
+      .map((part) => part.text || '')
       .join('\n')
       .trim();
 
