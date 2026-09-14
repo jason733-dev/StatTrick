@@ -1059,7 +1059,7 @@ function computeSeasonStats(){
 }
 
 /* ---------------- AI Summary ---------------- */
-async function generateSummary(g){
+async function generateSummary(g, provider){
   genBusy = true; render();
   try{
     const stats = computeStats(g);
@@ -1085,11 +1085,12 @@ async function generateSummary(g){
     const resp = await fetch('/api/summary', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({prompt})
+      body: JSON.stringify({prompt, provider: provider || 'claude'})
     });
     const data = await resp.json();
     if(!resp.ok) throw new Error(data.error || 'summary request failed');
     g.aiSummary = (data.text||'').trim() || 'Could not generate a summary — please try again.';
+    g.aiSummaryProvider = provider || 'claude';
   }catch(e){
     g.aiSummary = 'Something went wrong generating the summary. Please try again.';
   }
@@ -1557,10 +1558,16 @@ function renderGameDetail(g, embedded){
   if(g.aiSummary){
     html += '<div class="summary-box">'+esc(g.aiSummary)+'</div>';
     if(isAdmin){
-      html += '<button class="btn btn-ghost btn-sm" style="margin-top:10px;" id="regen-summary-btn" '+(genBusy?'disabled':'')+'>'+(genBusy?'<span class="spinner"></span> Working…':'Regenerate summary')+'</button>';
+      html += '<div class="controls-row" style="margin-top:10px;">'+
+        '<button class="btn btn-ghost btn-sm" data-provider="claude" data-summary-action="regen" '+(genBusy?'disabled':'')+'>'+(genBusy?'<span class="spinner"></span> Working…':'Regenerate (Claude)')+'</button>'+
+        '<button class="btn btn-ghost btn-sm" data-provider="gemini" data-summary-action="regen" '+(genBusy?'disabled':'')+'>'+(genBusy?'<span class="spinner"></span> Working…':'Regenerate (Gemini)')+'</button>'+
+      '</div>';
     }
   }else if(g.status==='ended'){
-    html += '<button class="btn btn-gold" id="gen-summary-btn" '+(genBusy?'disabled':'')+'>'+(genBusy?'<span class="spinner"></span> Writing recap…':'✨ Generate AI summary')+'</button>';
+    html += '<div class="controls-row">'+
+      '<button class="btn btn-gold" data-provider="claude" data-summary-action="gen" '+(genBusy?'disabled':'')+'>'+(genBusy?'<span class="spinner"></span> Writing…':'✨ Claude summary')+'</button>'+
+      '<button class="btn btn-gold" data-provider="gemini" data-summary-action="gen" '+(genBusy?'disabled':'')+'>'+(genBusy?'<span class="spinner"></span> Writing…':'✨ Gemini summary')+'</button>'+
+    '</div>';
   }else{
     html += '<p class="empty-note">Available once the match has ended.</p>';
   }
@@ -1758,10 +1765,9 @@ function bindEvents(g){
   const backBtn = document.getElementById('back-to-list');
   if(backBtn) backBtn.onclick = ()=>{ historyDetailId=null; render(); };
 
-  const genBtn = document.getElementById('gen-summary-btn');
-  if(genBtn) genBtn.onclick = ()=> generateSummary(historyDetailId?findGame(historyDetailId):g);
-  const regenBtn = document.getElementById('regen-summary-btn');
-  if(regenBtn) regenBtn.onclick = ()=> generateSummary(historyDetailId?findGame(historyDetailId):g);
+  document.querySelectorAll('[data-summary-action]').forEach(el=>{
+    el.onclick = ()=> generateSummary(historyDetailId?findGame(historyDetailId):g, el.dataset.provider);
+  });
 
   const exportBtn = document.getElementById('export-csv-btn');
   if(exportBtn) exportBtn.onclick = ()=> exportCSV(historyDetailId?findGame(historyDetailId):g);
