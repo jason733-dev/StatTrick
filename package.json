@@ -1,0 +1,9 @@
+{
+  "name": "stat-trick-bangers",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Stat Trick — live match stat tracker for the Bangers (Los Gatos United U12)",
+  "dependencies": {
+    "@vercel/kv": "^2.0.0"
+  }
+}
