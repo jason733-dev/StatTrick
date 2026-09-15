@@ -646,20 +646,34 @@ nav.tabbar button.active{color:var(--turf-700);}
 <body>
 <div id="app"></div>
 <div id="toast" class="toast"></div>
+<script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-compat.js"></script>
 <script>
+"use strict";
+const firebaseConfig = {
+  apiKey: "AIzaSyDZVrJdqmFXMXeDgeSB_tSssiXTkwtemBA",
+  authDomain: "aicollector-8dea9.firebaseapp.com",
+  projectId: "aicollector-8dea9",
+  storageBucket: "aicollector-8dea9.firebasestorage.app",
+  messagingSenderId: "620561948831",
+  appId: "1:620561948831:web:78e3166fef73fcd96bc2aa"
+};
+firebase.initializeApp(firebaseConfig);
+const fsdb = firebase.firestore();
+const FS_COLLECTION = 'stat_trick_storage';
+
 (function(){
 "use strict";
-/* Storage backend: shared data goes through our own /api/storage route
-   (backed by Firebase Firestore), personal/device-local data uses
-   localStorage. Same get/set/delete(key, value, shared) shape as the old
-   window.storage API, so nothing else in this file needs to change. */
+/* Storage backend: shared data goes straight to Firestore from the
+   browser using the Firebase config above, personal/device-local data
+   uses localStorage. Same get/set/delete(key, value, shared) shape as
+   before, so nothing else in this file needs to change. */
 const S = {
   async get(key, shared){
     if(shared){
-      const r = await fetch('/api/storage?key='+encodeURIComponent(key));
-      if(!r.ok) throw new Error('not found');
-      const data = await r.json();
-      return {key, value: data.value, shared};
+      const doc = await fsdb.collection(FS_COLLECTION).doc(key).get();
+      if(!doc.exists) throw new Error('not found');
+      return {key, value: doc.data().value, shared};
     }
     const v = localStorage.getItem('st:'+key);
     if(v===null) throw new Error('not found');
@@ -667,12 +681,7 @@ const S = {
   },
   async set(key, value, shared){
     if(shared){
-      const r = await fetch('/api/storage?key='+encodeURIComponent(key), {
-        method:'PUT',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({value})
-      });
-      if(!r.ok) throw new Error('save failed');
+      await fsdb.collection(FS_COLLECTION).doc(key).set({value});
       return {key, value, shared};
     }
     localStorage.setItem('st:'+key, value);
@@ -680,7 +689,7 @@ const S = {
   },
   async delete(key, shared){
     if(shared){
-      await fetch('/api/storage?key='+encodeURIComponent(key), {method:'DELETE'});
+      await fsdb.collection(FS_COLLECTION).doc(key).delete();
     }else{
       localStorage.removeItem('st:'+key);
     }
